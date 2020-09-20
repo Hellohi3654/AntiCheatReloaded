@@ -34,4 +34,4 @@ jobs:
       if: success()
       with:
           name: AntiCheatReloaded
-          path: target/something?
+          path: target/AntiCheatReloaded.jar
