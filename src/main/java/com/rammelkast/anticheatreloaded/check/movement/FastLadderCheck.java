@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package com.rammelkast.anticheatreloaded.check.movement;
 
 import java.util.HashMap;
@@ -31,6 +30,7 @@ import com.rammelkast.anticheatreloaded.check.CheckResult.Result;
 import com.rammelkast.anticheatreloaded.check.CheckType;
 import com.rammelkast.anticheatreloaded.config.providers.Checks;
 import com.rammelkast.anticheatreloaded.util.Utilities;
+import com.rammelkast.anticheatreloaded.util.VersionUtil;
 
 public class FastLadderCheck {
 
@@ -38,11 +38,11 @@ public class FastLadderCheck {
 	private static final CheckResult PASS = new CheckResult(CheckResult.Result.PASSED);
 
 	public static CheckResult runCheck(Player player, double y) {
-		// Only check if fully on ladder
+		// Only check if fully on ladder and not flying
 		// Liquids are climbable blocks, so we have to add a seperate check
 		if (!Utilities.isClimbableBlock(player.getLocation().getBlock())
 				|| !Utilities.isClimbableBlock(player.getEyeLocation().getBlock())
-				|| player.getLocation().getBlock().isLiquid()) {
+				|| player.getLocation().getBlock().isLiquid() || VersionUtil.isFlying(player)) {
 			return PASS;
 		}
 

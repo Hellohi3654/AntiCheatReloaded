@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 
 package com.rammelkast.anticheatreloaded.event;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -32,7 +36,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerBedEnterEvent;
 import org.bukkit.event.player.PlayerBedLeaveEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
@@ -73,15 +76,16 @@ import com.rammelkast.anticheatreloaded.util.Permission;
 import com.rammelkast.anticheatreloaded.util.User;
 import com.rammelkast.anticheatreloaded.util.Utilities;
 import com.rammelkast.anticheatreloaded.util.VersionUtil;
+import com.rammelkast.anticheatreloaded.util.XMaterial;
 
-public class PlayerListener extends EventListener {
+public final class PlayerListener extends EventListener {
 
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
-		Player player = event.getPlayer();
+		final Player player = event.getPlayer();
 		if (getCheckManager().willCheck(player, CheckType.COMMAND_SPAM)
 				&& !Permission.getCommandExempt(player, event.getMessage().split(" ")[0])) {
-			CheckResult result = getBackend().checkCommandSpam(player, event.getMessage());
+			final CheckResult result = getBackend().checkCommandSpam(player, event.getMessage());
 			if (result.failed()) {
 				event.setCancelled(!silentMode());
 				if (!silentMode())
@@ -94,8 +98,8 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerToggleFlight(PlayerToggleFlightEvent event) {
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onPlayerToggleFlight(final PlayerToggleFlightEvent event) {
 		if (!event.isFlying()) {
 			getBackend().logEnterExit(event.getPlayer());
 		}
@@ -103,8 +107,8 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerGameModeChange(PlayerGameModeChangeEvent event) {
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onPlayerGameModeChange(final PlayerGameModeChangeEvent event) {
 		if (event.getNewGameMode() != GameMode.CREATIVE) {
 			getBackend().logEnterExit(event.getPlayer());
 		}
@@ -112,17 +116,17 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onProjectileLaunch(ProjectileLaunchEvent event) {
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onProjectileLaunch(final ProjectileLaunchEvent event) {
 		if (event.getEntity().getShooter() instanceof Player) {
-			Player player = (Player) event.getEntity().getShooter();
+			final Player player = (Player) event.getEntity().getShooter();
 
 			if (event.getEntity() instanceof Arrow) {
 				return;
 			}
 
 			if (getCheckManager().willCheck(player, CheckType.FAST_PROJECTILE)) {
-				CheckResult result = getBackend().checkProjectile(player);
+				final CheckResult result = getBackend().checkProjectile(player);
 				if (result.failed()) {
 					event.setCancelled(!silentMode());
 					log(result.getMessage(), player, CheckType.FAST_PROJECTILE, result.getSubCheck());
@@ -133,65 +137,58 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerTeleport(PlayerTeleportEvent event) {
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onPlayerTeleport(final PlayerTeleportEvent event) {
 		getBackend().logTeleport(event.getPlayer());
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerChangeWorlds(PlayerChangedWorldEvent event) {
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void onPlayerChangeWorlds(final PlayerChangedWorldEvent event) {
 		getBackend().logTeleport(event.getPlayer());
 
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerToggleSneak(PlayerToggleSneakEvent event) {
-		Player player = event.getPlayer();
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onPlayerToggleSneak(final PlayerToggleSneakEvent event) {
+		final Player player = event.getPlayer();
 		if (event.isSneaking()) {
 			if (getCheckManager().willCheck(player, CheckType.SNEAK)) {
-				CheckResult result = getBackend().checkSneakToggle(player);
+				final CheckResult result = getBackend().checkSneakToggle(player);
 				if (result.failed()) {
 					event.setCancelled(!silentMode());
 					log(result.getMessage(), player, CheckType.SNEAK, result.getSubCheck());
 				}
 			}
-			// getBackend().logToggleSneak(event.getPlayer());
 		}
 
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onPlayerVelocity(PlayerVelocityEvent event) {
-		Player player = event.getPlayer();
-		if (getCheckManager().willCheck(player, CheckType.FLIGHT)) {
-			if (getBackend().justVelocity(player) && getBackend().extendVelocityTime(player)) {
-				event.setCancelled(!silentMode());
-				return;
-			}
-			getBackend().logVelocity(player);
-		}
-		
+		final Player player = event.getPlayer();
+		getBackend().logVelocity(player);
+
 		// Part of Velocity check
-		User user = AntiCheatReloaded.getManager().getUserManager()
-				.getUser(event.getPlayer().getUniqueId());
-		if (!user.getMovementManager().onGround)
+		final User user = AntiCheatReloaded.getManager().getUserManager().getUser(event.getPlayer().getUniqueId());
+		if (!user.getMovementManager().onGround) {
 			return;
-		double motionY = event.getVelocity().getY();
+		}
+		final double motionY = event.getVelocity().getY();
 		user.getMovementManager().velocityExpectedMotionY = motionY;
 		// End part of Velocity check
 		
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler(ignoreCancelled = true)
-	public void onPlayerChat(AsyncPlayerChatEvent event) {
-		Player player = event.getPlayer();
-
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onPlayerChat(final AsyncPlayerChatEvent event) {
+		final Player player = event.getPlayer();
+		
 		if (getCheckManager().willCheck(player, CheckType.CHAT_SPAM)) {
-			CheckResult result = getBackend().checkChatSpam(player, event.getMessage());
+			final CheckResult result = getBackend().checkChatSpam(player, event.getMessage());
 			if (result.failed()) {
 				event.setCancelled(!silentMode());
 				if (!result.getMessage().equals("") && !silentMode()) {
@@ -208,7 +205,7 @@ public class PlayerListener extends EventListener {
 		}
 
 		if (getCheckManager().willCheck(player, CheckType.CHAT_UNICODE)) {
-			CheckResult result = getBackend().checkChatUnicode(player, event.getMessage());
+			final CheckResult result = getBackend().checkChatUnicode(player, event.getMessage());
 			if (result.failed()) {
 				event.setCancelled(true);
 				player.sendMessage(ChatColor.translateAlternateColorCodes('&', result.getMessage()));
@@ -224,38 +221,50 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR)
 	public void onPlayerKick(PlayerKickEvent event) {
-		getBackend().garbageClean(event.getPlayer());
+		getBackend().cleanup(event.getPlayer());
 
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerQuit(PlayerQuitEvent event) {
-		getBackend().garbageClean(event.getPlayer());
-
-		User user = getUserManager().getUser(event.getPlayer().getUniqueId());
-
-		getConfig().getLevels().saveLevelFromUser(user);
-
-		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
-	}
-
-	@EventHandler
-	public void onPlayerVehicleCollide(VehicleEntityCollisionEvent event) {
-		if (!(event.getVehicle() instanceof Boat) || !(event.getEntity() instanceof Player))
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void onPlayerQuit(final PlayerQuitEvent event) {
+		final Player player = event.getPlayer();
+		try {
+			final User user = AntiCheatReloaded.getExecutor().submit(new Callable<User>() {
+				@Override
+				public User call() throws Exception {
+					getBackend().cleanup(player);
+					final User user = getUserManager().getUser(player.getUniqueId());
+					getConfig().getLevels().saveLevelFromUser(user);
+					return user;
+				}
+			}).get();
+			getUserManager().removeUser(user);
+		} catch (final InterruptedException | ExecutionException exception) {
+			AntiCheatReloaded.getPlugin().getLogger().log(Level.SEVERE, "Failed to destroy user object async", exception);
 			return;
+		}
 
-		Player player = (Player) event.getEntity();
+		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
+	}
+
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onPlayerVehicleCollide(final VehicleEntityCollisionEvent event) {
+		if (!(event.getVehicle() instanceof Boat) || !(event.getEntity() instanceof Player)) {
+			return;
+		}
+
+		final Player player = (Player) event.getEntity();
 		getBackend().logBoatCollision(player);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerToggleSprint(PlayerToggleSprintEvent event) {
-		Player player = event.getPlayer();
+		final Player player = event.getPlayer();
 		if (getCheckManager().willCheck(player, CheckType.SPRINT)) {
-			CheckResult result = getBackend().checkSprintHungry(event);
+			final CheckResult result = getBackend().checkSprintHungry(event);
 			if (result.failed()) {
 				event.setCancelled(!silentMode());
 				log(result.getMessage(), player, CheckType.SPRINT, result.getSubCheck());
@@ -267,18 +276,13 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerInteract(PlayerInteractEvent event) {
-		Player player = event.getPlayer();
-		PlayerInventory inv = player.getInventory();
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void onPlayerInteract(final PlayerInteractEvent event) {
+		final Player player = event.getPlayer();
+		final PlayerInventory inv = player.getInventory();
 		if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-			ItemStack itemInHand;
-			if (VersionUtil.isBountifulUpdate()) {
-				itemInHand = VersionUtil.getItemInHand(player);
-			} else {
-				itemInHand = ((event.getHand() == EquipmentSlot.HAND) ? inv.getItemInMainHand()
-						: inv.getItemInOffHand());
-			}
+			final ItemStack itemInHand = VersionUtil.isBountifulUpdate() ? VersionUtil.getItemInHand(player)
+					: ((event.getHand() == EquipmentSlot.HAND) ? inv.getItemInMainHand() : inv.getItemInOffHand());
 
 			if (itemInHand.getType() == Material.BOW) {
 				getBackend().logBowWindUp(player);
@@ -287,21 +291,20 @@ public class PlayerListener extends EventListener {
 			}
 
 			if (!VersionUtil.isBountifulUpdate()) {
-				if (itemInHand.getType() == Material.FIREWORK_ROCKET) {
+				if (itemInHand.getType() == XMaterial.FIREWORK_ROCKET.parseMaterial()) {
 					ElytraCheck.JUMP_Y_VALUE.remove(player.getUniqueId());
 					if (player.isGliding()) {
-						// TODO config max elytra height?
 						ElytraCheck.JUMP_Y_VALUE.put(player.getUniqueId(), 9999.99D);
 					}
 				}
 			}
 		}
 
-		Block block = event.getClickedBlock();
+		final Block block = event.getClickedBlock();
 		if (block != null
 				&& (event.getAction() == Action.RIGHT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_BLOCK)) {
 			if (getCheckManager().willCheck(player, CheckType.ILLEGAL_INTERACT)) {
-				CheckResult result = IllegalInteract.performCheck(player, event);
+				final CheckResult result = IllegalInteract.performCheck(player, event);
 				if (result.failed()) {
 					event.setCancelled(!silentMode());
 					log(result.getMessage(), player, CheckType.ILLEGAL_INTERACT, result.getSubCheck());
@@ -312,9 +315,9 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler(ignoreCancelled = true)
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onPlayerDropItem(PlayerDropItemEvent event) {
-		Player player = event.getPlayer();
+		final Player player = event.getPlayer();
 		if (getCheckManager().willCheck(player, CheckType.ITEM_SPAM)) {
 			CheckResult result = getBackend().checkFastDrop(player);
 			if (result.failed()) {
@@ -326,39 +329,47 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler(ignoreCancelled = true)
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onPlayerEnterBed(PlayerBedEnterEvent event) {
-		if (event.getBed().getType().name().endsWith("BED"))
+		if (event.getBed().getType().name().endsWith("BED")) {
 			return;
+		}
 		getBackend().logEnterExit(event.getPlayer());
 
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler(ignoreCancelled = true)
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onPlayerExitBed(PlayerBedLeaveEvent event) {
-		if (event.getBed().getType().name().endsWith("BED"))
+		if (event.getBed().getType().name().endsWith("BED")) {
 			return;
+		}
 		getBackend().logEnterExit(event.getPlayer());
 
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler
-	public void onPlayerAnimation(PlayerAnimationEvent event) {
-		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
-	}
-
-	@EventHandler
-	public void onPlayerJoin(PlayerJoinEvent event) {
-		Player player = event.getPlayer();
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void onPlayerJoin(final PlayerJoinEvent event) {
+		final Player player = event.getPlayer();
 		getBackend().logJoin(player);
 
-		User user = new User(player.getUniqueId());
-		user.setIsWaitingOnLevelSync(true);
-		getConfig().getLevels().loadLevelToUser(user);
-		getUserManager().addUser(user);
-
+		try {
+			final User user = AntiCheatReloaded.getExecutor().submit(new Callable<User>() {
+				@Override
+				public User call() throws Exception {
+					final User user = new User(player.getUniqueId());
+					user.setIsWaitingOnLevelSync(true);
+					getConfig().getLevels().loadLevelToUser(user);
+					return user;
+				}
+			}).get();
+			getUserManager().addUser(user);
+		} catch (final InterruptedException | ExecutionException exception) {
+			AntiCheatReloaded.getPlugin().getLogger().log(Level.SEVERE, "Failed to create user object async", exception);
+			return;
+		}
+		
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 
 		if (player.hasPermission("anticheat.admin") && !AntiCheatReloaded.getUpdateManager().isLatest()) {
@@ -369,8 +380,8 @@ public class PlayerListener extends EventListener {
 		}
 	}
 
-	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-	public void onPlayerMove(PlayerMoveEvent event) {
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void onPlayerMove(final PlayerMoveEvent event) {
 		final Player player = event.getPlayer();
 		if (getCheckManager().checkInWorld(player) && !getCheckManager().isOpExempt(player)) {
 			final Location from = event.getFrom();
@@ -384,7 +395,7 @@ public class PlayerListener extends EventListener {
 			user.getMovementManager().handle(player, from, to, distance);
 
 			if (getCheckManager().willCheckQuick(player, CheckType.FLIGHT) && !VersionUtil.isFlying(player)) {
-				CheckResult result = FlightCheck.runCheck(player, distance);
+				final CheckResult result = FlightCheck.runCheck(player, distance);
 				if (result.failed()) {
 					if (!silentMode()) {
 						event.setTo(user.getGoodLocation(from.clone()));
@@ -393,14 +404,24 @@ public class PlayerListener extends EventListener {
 				}
 			}
 			if (getCheckManager().willCheckQuick(player, CheckType.ELYTRAFLY)) {
-				CheckResult result = ElytraCheck.runCheck(player, distance);
+				final CheckResult result = ElytraCheck.runCheck(player, distance);
 				if (result.failed()) {
 					log(result.getMessage(), player, CheckType.ELYTRAFLY, result.getSubCheck());
 				}
 			}
+			if (getCheckManager().willCheckQuick(player, CheckType.BOATFLY)) {
+				final CheckResult result = BoatFlyCheck.runCheck(player, user.getMovementManager(), to);
+				if (result.failed()) {
+					if (!silentMode()) {
+						player.eject();
+						event.setTo(user.getGoodLocation(from.clone()));
+					}
+					log(result.getMessage(), player, CheckType.BOATFLY, result.getSubCheck());
+				}
+			}
 			if (getCheckManager().willCheckQuick(player, CheckType.VCLIP)
 					&& event.getFrom().getY() > event.getTo().getY()) {
-				CheckResult result = getBackend().checkVClip(player, new Distance(event.getFrom(), event.getTo()));
+				final CheckResult result = getBackend().checkVClip(player, new Distance(event.getFrom(), event.getTo()));
 				if (result.failed()) {
 					if (!silentMode()) {
 						int data = result.getData() > 3 ? 3 : result.getData();
@@ -420,23 +441,22 @@ public class PlayerListener extends EventListener {
 					&& getCheckManager().willCheck(player, CheckType.FLIGHT)
 					&& !Utilities.isClimbableBlock(player.getLocation().getBlock())
 					&& event.getFrom().getY() > event.getTo().getY()) {
-				CheckResult result = getBackend().checkNoFall(player, y);
+				final CheckResult result = getBackend().checkNoFall(player, y);
 				if (result.failed()) {
 					if (!silentMode()) {
 						event.setTo(user.getGoodLocation(from.clone()));
-						// TODO better handling of this
 					}
 					log(result.getMessage(), player, CheckType.NOFALL, result.getSubCheck());
 				}
 			}
 
 			if (event.getTo() != event.getFrom()) {
-				double x = distance.getXDifference();
-				double z = distance.getZDifference();
+				final double x = distance.getXDifference();
+				final double z = distance.getZDifference();
 				if (getCheckManager().willCheckQuick(player, CheckType.SPEED)
 						&& getCheckManager().willCheck(player, CheckType.FLIGHT)) {
 					if (event.getFrom().getY() < event.getTo().getY()) {
-						CheckResult result = SpeedCheck.checkVerticalSpeed(player, distance);
+						final CheckResult result = SpeedCheck.checkVerticalSpeed(player, distance);
 						if (result.failed()) {
 							if (!silentMode()) {
 								event.setTo(user.getGoodLocation(from.clone()));
@@ -444,7 +464,7 @@ public class PlayerListener extends EventListener {
 							log(result.getMessage(), player, CheckType.SPEED, result.getSubCheck());
 						}
 					}
-					CheckResult result = SpeedCheck.checkXZSpeed(player, x, z, event.getTo());
+					final CheckResult result = SpeedCheck.checkXZSpeed(player, x, z, event.getTo());
 					if (result.failed()) {
 						if (!silentMode()) {
 							event.setTo(user.getGoodLocation(from.clone()));
@@ -453,17 +473,16 @@ public class PlayerListener extends EventListener {
 					}
 				}
 				if (getCheckManager().willCheckQuick(player, CheckType.WATER_WALK)) {
-					CheckResult result = WaterWalkCheck.runCheck(player, x, y, z);
+					final CheckResult result = WaterWalkCheck.runCheck(player, x, y, z);
 					if (result.failed()) {
 						if (!silentMode()) {
-							// TODO check this
-							player.teleport(player.getLocation().clone().subtract(0, 0.52, 0));
+							player.teleport(player.getLocation().clone().subtract(0, 0.42, 0));
 						}
 						log(result.getMessage(), player, CheckType.WATER_WALK, result.getSubCheck());
 					}
 				}
 				if (getCheckManager().willCheckQuick(player, CheckType.SPIDER)) {
-					CheckResult result = getBackend().checkSpider(player, y);
+					final CheckResult result = getBackend().checkSpider(player, y);
 					if (result.failed()) {
 						if (!silentMode()) {
 							event.setTo(user.getGoodLocation(from.clone()));
@@ -473,7 +492,7 @@ public class PlayerListener extends EventListener {
 				}
 				if (getCheckManager().willCheckQuick(player, CheckType.FASTLADDER)) {
 					// Does not use y value created before because that value is absolute
-					CheckResult result = FastLadderCheck.runCheck(player,
+					final CheckResult result = FastLadderCheck.runCheck(player,
 							event.getTo().getY() - event.getFrom().getY());
 					if (result.failed()) {
 						if (!silentMode()) {
@@ -483,7 +502,7 @@ public class PlayerListener extends EventListener {
 					}
 				}
 				if (getCheckManager().willCheckQuick(player, CheckType.STRAFE)) {
-					CheckResult result = StrafeCheck.runCheck(player, x, z, event.getFrom(), event.getTo());
+					final CheckResult result = StrafeCheck.runCheck(player, x, z, event.getFrom(), event.getTo());
 					if (result.failed()) {
 						if (!silentMode()) {
 							event.setTo(user.getGoodLocation(from.clone()));
@@ -493,13 +512,13 @@ public class PlayerListener extends EventListener {
 				}
 			}
 			if (getCheckManager().willCheckQuick(player, CheckType.AIMBOT)) {
-				CheckResult result = AimbotCheck.runCheck(player, event);
+				final CheckResult result = AimbotCheck.runCheck(player, event);
 				if (result.failed()) {
 					log(result.getMessage(), player, CheckType.AIMBOT, result.getSubCheck());
 				}
 			}
 			if (getCheckManager().willCheckQuick(player, CheckType.VELOCITY)) {
-				CheckResult result = VelocityCheck.runCheck(player, distance);
+				final CheckResult result = VelocityCheck.runCheck(player, distance);
 				if (result.failed()) {
 					log(result.getMessage(), player, CheckType.VELOCITY, result.getSubCheck());
 				}
@@ -509,8 +528,8 @@ public class PlayerListener extends EventListener {
 		AntiCheatReloaded.getManager().addEvent(event.getEventName(), event.getHandlers().getRegisteredListeners());
 	}
 
-	@EventHandler(priority = EventPriority.HIGHEST)
-	public void onRespawn(PlayerRespawnEvent event) {
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void onRespawn(final PlayerRespawnEvent event) {
 		getBackend().logTeleport(event.getPlayer());
 	}
 

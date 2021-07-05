@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 
 package com.rammelkast.anticheatreloaded.check;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -26,18 +30,13 @@ import com.rammelkast.anticheatreloaded.api.CheckFailEvent;
 import com.rammelkast.anticheatreloaded.util.Permission;
 import com.rammelkast.anticheatreloaded.util.User;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 /**
  * <p/>
  * All the types of checks and their corresponding permission nodes.
  */
-
 public enum CheckType {
     FLIGHT(Permission.CHECK_FLIGHT, "Flight"),
-    ELYTRAFLY(Permission.CHECK_FLIGHT, "ElytraFly"),
+    ELYTRAFLY(Permission.CHECK_ELYTRAFLY, "ElytraFly"),
     WATER_WALK(Permission.CHECK_WATERWALK, "WaterWalk"),
     FAST_PLACE(Permission.CHECK_FASTPLACE, "FastPlace"),
     CHAT_SPAM(Permission.CHECK_CHATSPAM, "ChatSpam"),

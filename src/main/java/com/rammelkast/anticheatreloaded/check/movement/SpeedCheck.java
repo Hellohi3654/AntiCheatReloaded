@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ import com.rammelkast.anticheatreloaded.util.Utilities;
 import com.rammelkast.anticheatreloaded.util.VersionUtil;
 
 /**
- * @author Rammelkast TODO soulsand speed
+ * @author Rammelkast TODO soulsand speed TODO buffer system
  */
 public class SpeedCheck {
 
@@ -51,6 +51,9 @@ public class SpeedCheck {
 
 		MovementManager movementManager = AntiCheatReloaded.getManager().getUserManager().getUser(player.getUniqueId())
 				.getMovementManager();
+		// Riptiding exemption
+		if (movementManager.riptideTicks > 0)
+			return PASS;
 		Checks checksConfig = AntiCheatReloaded.getManager().getConfiguration().getChecks();
 		double distanceXZ = movementManager.distanceXZ;
 		boolean boxedIn = movementManager.topSolid && movementManager.bottomSolid;
@@ -60,6 +63,9 @@ public class SpeedCheck {
 				&& movementManager.elytraEffectTicks <= 0 && !Utilities.isNearClimbable(player)) {
 			double multiplier = 0.985D;
 			double predict = 0.36 * Math.pow(multiplier, movementManager.airTicks + 1);
+			// Prevents false when falling from great heights
+			if (movementManager.airTicks >= 115)
+				predict = Math.max(0.08, predict);
 			double limit = checksConfig.getDouble(CheckType.SPEED, "airSpeed", "baseLimit"); // Default 0.03125
 			// Adjust for ice
 			if (movementManager.iceInfluenceTicks > 0) {
@@ -75,7 +81,7 @@ public class SpeedCheck {
 			}
 			// Leniency when boxed in
 			if (boxedIn && movementManager.airTicks < 3)
-				limit *= 1.2D;
+				predict *= 1.2D;
 			// Adjust for slime
 			if (movementManager.slimeInfluenceTicks > 0) {
 				double slimeIncrement = 0.022 * Math.pow(1.0375, movementManager.slimeInfluenceTicks);
@@ -115,7 +121,7 @@ public class SpeedCheck {
 			if (VersionUtil.isSlowFalling(player))
 				predict *= 1.25D;
 			// Prevent NoSlow
-			if (movementManager.blockingTicks > 2 && movementManager.airTicks > 2)
+			if (movementManager.blockingTicks > 3 && movementManager.airTicks > 2)
 				predict *= 0.8D;
 			if (movementManager.blockingTicks > 10 && movementManager.airTicks > 2)
 				predict *= 0.5D;
@@ -141,13 +147,13 @@ public class SpeedCheck {
 			double limit = checksConfig.getDouble(CheckType.SPEED, "airAcceleration", "baseLimit"); // Default 0.3725
 			// Slight increase when boxed in
 			if (boxedIn)
-				limit *= 1.05D;
+				limit *= 1.08D;
 			// Adjust for speed effects
 			if (player.hasPotionEffect(PotionEffectType.SPEED))
 				limit += VersionUtil.getPotionLevel(player, PotionEffectType.SPEED) * 0.0225D;
 			// Adjust for slabs
 			if (movementManager.halfMovementHistoryCounter > 15)
-				limit *= 2.0D;
+				limit *= 2.05D;
 			// Adjust for custom walking speed
 			double walkSpeedMultiplier = checksConfig.getDouble(CheckType.SPEED, "airAcceleration",
 					"walkSpeedMultiplier"); // Default 1.4
@@ -164,14 +170,16 @@ public class SpeedCheck {
 		// JumpBehaviour
 		// Works against YPorts and mini jumps
 		if (checksConfig.isSubcheckEnabled(CheckType.SPEED, "jumpBehaviour") && movementManager.touchedGroundThisTick
-				&& !boxedIn && movementManager.slimeInfluenceTicks <= 10) {
+				&& !boxedIn && movementManager.slimeInfluenceTicks <= 10 && !Utilities.isNearHalfblock(movingTowards)
+				&& !Utilities.isNearHalfblock(movingTowards.clone().subtract(0, 0.51, 0)) && !Utilities.couldBeOnBoat(player, 0.8d, false)) {
 			// This happens naturally
 			if (movementManager.airTicksBeforeGrounded == movementManager.groundTicks) {
 				double minimumDistXZ = checksConfig.getDouble(CheckType.SPEED, "jumpBehaviour", "minimumDistXZ"); // Default
-																													// 0.42
-				if (distanceXZ >= minimumDistXZ) {
+
+				if (distanceXZ >= minimumDistXZ || movementManager.lastDistanceXZ >= minimumDistXZ) {
 					return new CheckResult(CheckResult.Result.FAILED, "JumpBehaviour",
-							"had unexpected jumping behaviour");
+							"had unexpected jumping behaviour (dXZ=" + Utilities.roundDouble(distanceXZ, 4) + ", lXZ="
+									+ Utilities.roundDouble(movementManager.lastDistanceXZ, 4) + ")");
 				}
 			}
 		}
@@ -246,10 +254,13 @@ public class SpeedCheck {
 	public static CheckResult checkVerticalSpeed(Player player, Distance distance) {
 		Backend backend = AntiCheatReloaded.getManager().getBackend();
 		if (isSpeedExempt(player, backend) || player.getVehicle() != null || player.isSleeping()
-				|| VersionUtil.isRiptiding(player) || Utilities.isNearWater(player))
+				|| Utilities.isNearWater(player))
 			return PASS;
 		MovementManager movementManager = AntiCheatReloaded.getManager().getUserManager().getUser(player.getUniqueId())
 				.getMovementManager();
+		// Riptiding exemption
+		if (movementManager.riptideTicks > 0)
+			return PASS;
 		Checks checksConfig = AntiCheatReloaded.getManager().getConfiguration().getChecks();
 		if (!checksConfig.isSubcheckEnabled(CheckType.SPEED, "verticalSpeed"))
 			return PASS;

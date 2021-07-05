@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +31,10 @@ import com.rammelkast.anticheatreloaded.manage.UserManager;
 import com.rammelkast.anticheatreloaded.util.Group;
 
 /**
- * Developer's interface for all things AntiCheat.
+ * Fired when a player fails an AntiCheatReloaded check
+ * Will be replaced in ACR 2.0.0
  */
-
+@Deprecated
 public class AntiCheatAPI {
     private static CheckManager chk = AntiCheatReloaded.getManager().getCheckManager();
     private static UserManager umr = AntiCheatReloaded.getManager().getUserManager();

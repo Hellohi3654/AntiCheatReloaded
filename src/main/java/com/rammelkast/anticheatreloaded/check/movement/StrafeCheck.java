@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ public class StrafeCheck {
 	public static CheckResult runCheck(Player player, double x, double z, Location from, Location to) {
 		if (!Utilities.cantStandAtExp(from) || !Utilities.cantStandAtExp(to) || Utilities.isNearWater(player)
 				|| Utilities.isNearClimbable(player) || VersionUtil.isFlying(player) || player.isDead()
-				|| Utilities.isHalfblock(to.getBlock().getRelative(BlockFace.DOWN)))
+				|| Utilities.isHalfblock(to.getBlock().getRelative(BlockFace.DOWN)) || Utilities.isNearHalfblock(to))
 			return PASS;
 
 		MovementManager movementManager = AntiCheatReloaded.getManager().getUserManager().getUser(player.getUniqueId())
@@ -53,7 +53,7 @@ public class StrafeCheck {
 
 		if (System.currentTimeMillis() - movementManager.lastTeleport <= checksConfig.getInteger(CheckType.STRAFE,
 				"accountForTeleports") || movementManager.elytraEffectTicks >= 20
-				|| movementManager.halfMovementHistoryCounter >= 20)
+				|| movementManager.halfMovementHistoryCounter >= 20 || Utilities.couldBeOnBoat(player, 0.5d, false))
 			return PASS;
 
 		Vector oldAcceleration = new Vector(movementManager.lastDistanceX, 0, movementManager.lastDistanceZ);

@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -102,7 +102,7 @@ public class MySQLLevelsHolder extends ConfigurationTable implements Levels {
                         e.printStackTrace();
                     }
                 }
-                AntiCheatReloaded.getManager().getUserManager().remove(user);
+                AntiCheatReloaded.getManager().getUserManager().removeUser(user);
             }
         });
     }

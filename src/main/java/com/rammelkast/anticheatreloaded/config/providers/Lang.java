@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,4 +99,12 @@ public interface Lang {
      * @return Kicking broadcast.
      */
     public String KICK_BROADCAST();
+    
+
+    /**
+     * Get the alert prefix for staff and debug.
+     *
+     * @return Alert prefix.
+     */
+    public String ALERT_PREFIX();
 }

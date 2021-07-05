@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package com.rammelkast.anticheatreloaded.util;
 
 import java.util.Arrays;
@@ -36,8 +35,8 @@ import com.rammelkast.anticheatreloaded.AntiCheatReloaded;
 
 public class VersionUtil {
 
-	private static final List<String> SUPPORTED_VERSIONS = Arrays
-			.asList(new String[] { "v1_16", "v1_15", "v1_14", "v1_13", "v1_8_R3" });
+	public static final MinecraftVersion CURRENT_VERSION;
+	private static final List<String> SUPPORTED_VERSIONS;
 
 	public static String getVersion() {
 		return Bukkit.getServer().getClass().getPackage().getName().replace(".", ",").split(",")[3];
@@ -52,7 +51,7 @@ public class VersionUtil {
 		return false;
 	}
 
-	public static boolean isOfVersion(String versionId) {
+	public static boolean isOfVersion(final String versionId) {
 		if (getVersion().startsWith(versionId)) {
 			return true;
 		}
@@ -66,7 +65,7 @@ public class VersionUtil {
 		return isOfVersion("v1_8");
 	}
 
-	public static boolean isFlying(Player player) {
+	public static boolean isFlying(final Player player) {
 		if (isBountifulUpdate()) {
 			return player.isFlying();
 		}
@@ -74,21 +73,14 @@ public class VersionUtil {
 				|| AntiCheatReloaded.getManager().getBackend().justLevitated(player);
 	}
 
-	public static boolean isRiptiding(Player player) {
-		if (isBountifulUpdate()) {
-			return false;
-		}
-		return player.isRiptiding();
-	}
-
-	public static boolean isSlowFalling(Player player) {
-		if (isBountifulUpdate()) {
+	public static boolean isSlowFalling(final Player player) {
+		if (!CURRENT_VERSION.isAtLeast(MinecraftVersion.AQUATIC_UPDATE)) {
 			return false;
 		}
 		return player.hasPotionEffect(PotionEffectType.SLOW_FALLING);
 	}
 
-	public static boolean isFrostWalk(Player player) {
+	public static boolean isFrostWalk(final Player player) {
 		if (player.getInventory().getBoots() == null || isBountifulUpdate()) {
 			return false;
 		}
@@ -96,62 +88,78 @@ public class VersionUtil {
 	}
 
 	@SuppressWarnings("deprecation")
-	public static ItemStack getItemInHand(Player player) {
+	public static ItemStack getItemInHand(final Player player) {
 		if (isBountifulUpdate()) {
 			return player.getItemInHand();
 		}
 		return player.getInventory().getItemInMainHand();
 	}
 
-	public static int getPlayerPing(Player player) {
-		try {
-			Object entityPlayer = player.getClass().getMethod("getHandle").invoke(player);
-			int ping = (int) entityPlayer.getClass().getField("ping").get(entityPlayer);
-			return ping;
-		} catch (Exception e) {
+	public static int getPlayerPing(final Player player) {
+		// May be called with offline (null) player
+		if (player == null) {
 			return -1;
+		}
+		
+		if (!CURRENT_VERSION.isAtLeast(MinecraftVersion.CAVES_CLIFFS_1)) {
+			try {
+				final Object entityPlayer = player.getClass().getMethod("getHandle").invoke(player);
+				final int ping = (int) entityPlayer.getClass().getField("ping").get(entityPlayer);
+				return ping;
+			} catch (Exception e) {
+				return -1;
+			}
+		} else {
+			return player.getPing();
 		}
 	}
 
-	public static Block getTargetBlock(Player player, int distance) {
-		if (isBountifulUpdate()) {
+	public static Block getTargetBlock(final Player player, final int distance) {
+		if (!CURRENT_VERSION.isAtLeast(MinecraftVersion.AQUATIC_UPDATE)) {
 			return player.getTargetBlock((Set<Material>) null, distance);
 		}
 		return player.getTargetBlockExact(distance);
 	}
 
-	public static boolean isGliding(Player player) {
+	public static boolean isGliding(final Player player) {
 		if (isBountifulUpdate()) {
 			return false;
 		}
 		return player.isGliding();
 	}
 
-	public static boolean isLevitationEffect(PotionEffect effect) {
+	public static boolean isLevitationEffect(final PotionEffect effect) {
 		if (isBountifulUpdate()) {
 			return false;
 		}
 		return effect.getType().equals(PotionEffectType.LEVITATION);
 	}
 
-	public static int getPotionLevel(Player player, PotionEffectType type) {
+	public static int getPotionLevel(final Player player, final PotionEffectType type) {
 		if (isBountifulUpdate()) {
 			for (PotionEffect effect : player.getActivePotionEffects()) {
-				if (effect.getType().equals(type))
+				if (effect.getType().equals(type)) {
 					return effect.getAmplifier() + 1;
+				}
 			}
 			return 0;
 		}
-		
-		if (player.hasPotionEffect(type))
+
+		if (player.hasPotionEffect(type)) {
 			return player.getPotionEffect(type).getAmplifier() + 1;
+		}
 		return 0;
 	}
 
-	public static boolean isSwimming(Player player) {
-		if (isBountifulUpdate()) {
+	public static boolean isSwimming(final Player player) {
+		if (!CURRENT_VERSION.isAtLeast(MinecraftVersion.AQUATIC_UPDATE)) {
 			return false;
 		}
 		return player.isSwimming();
+	}
+
+	static {
+		SUPPORTED_VERSIONS = Arrays.asList(new String[] { "v1_17_R1", "v1_16", "v1_15", "v1_14", "v1_13", "v1_12", "v1_8_R3" });
+		CURRENT_VERSION = MinecraftVersion.getCurrentVersion();
 	}
 }

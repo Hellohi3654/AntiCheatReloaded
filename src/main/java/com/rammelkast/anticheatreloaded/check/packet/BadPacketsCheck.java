@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,8 +57,8 @@ public class BadPacketsCheck {
 		double tps = AntiCheatReloaded.getPlugin().getTPS();
 		MovementManager movementManager = AntiCheatReloaded.getManager().getUserManager().getUser(player.getUniqueId())
 				.getMovementManager();
-		if (user.isLagging() || tps < checksConfig.getDouble(CheckType.MOREPACKETS, "minimumTps")
-				|| (System.currentTimeMillis() - movementManager.lastTeleport <= 150))
+		if (user.isLagging() || tps < checksConfig.getDouble(CheckType.BADPACKETS, "minimumTps")
+				|| (System.currentTimeMillis() - movementManager.lastTeleport <= checksConfig.getInteger(CheckType.BADPACKETS, "teleportCompensation")))
 			return;
 
 		double x = packet.getDoubles().read(0);

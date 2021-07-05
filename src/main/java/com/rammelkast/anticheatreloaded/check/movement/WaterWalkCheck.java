@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,17 +38,18 @@ public class WaterWalkCheck {
 
 	private static final CheckResult PASS = new CheckResult(CheckResult.Result.PASSED);
 
-	public static CheckResult runCheck(Player player, double x, double y, double z) {
-		UUID uuid = player.getUniqueId();
-		User user = AntiCheatReloaded.getManager().getUserManager().getUser(uuid);
-		MovementManager movementManager = user.getMovementManager();
+	public static CheckResult runCheck(final Player player, final double x, final double y, final double z) {
+		final UUID uuid = player.getUniqueId();
+		final User user = AntiCheatReloaded.getManager().getUserManager().getUser(uuid);
+		final MovementManager movementManager = user.getMovementManager();
 
 		if (movementManager.distanceXZ <= 0 || player.getVehicle() != null || Utilities.isOnLilyPad(player)
-				|| VersionUtil.isRiptiding(player) || VersionUtil.isSwimming(player) || VersionUtil.isFlying(player))
+				|| movementManager.riptideTicks > 0 || VersionUtil.isSwimming(player) || VersionUtil.isFlying(player)
+				|| player.getLocation().getBlock().getType().name().endsWith("CARPET"))
 			return PASS;
-
-		Checks checksConfig = AntiCheatReloaded.getManager().getConfiguration().getChecks();
-		Block blockBeneath = player.getLocation().clone().subtract(0, 0.1, 0).getBlock();
+		
+		final Checks checksConfig = AntiCheatReloaded.getManager().getConfiguration().getChecks();
+		final Block blockBeneath = player.getLocation().clone().subtract(0, 0.1, 0).getBlock();
 		if (checksConfig.isSubcheckEnabled(CheckType.WATER_WALK, "walk") && blockBeneath.isLiquid()
 				&& Utilities.isSurroundedByWater(player)
 				&& ((movementManager.motionY == 0 && movementManager.lastMotionY == 0)
@@ -72,7 +73,8 @@ public class WaterWalkCheck {
 				&& Utilities.isSurroundedByWater(player)
 				&& Math.abs(movementManager.lastMotionY - movementManager.motionY) > minAbsMotionY
 				&& movementManager.distanceXZ > checksConfig.getDouble(CheckType.WATER_WALK, "lunge", "minimumDistXZ")
-				&& movementManager.lastMotionY > -0.25)
+				&& movementManager.lastMotionY > -0.25
+				&& !Utilities.couldBeOnBoat(player, 0.3, false))
 			return new CheckResult(Result.FAILED, "Lunge", "tried to lunge in water (xz="
 					+ Utilities.roundDouble(movementManager.distanceXZ, 5) + ", absMotionY="
 					+ Utilities.roundDouble(Math.abs(movementManager.lastMotionY - movementManager.motionY), 5) + ")");

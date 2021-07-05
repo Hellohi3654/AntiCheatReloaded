@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,12 +16,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package com.rammelkast.anticheatreloaded.event;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,6 +49,11 @@ public class EventListener implements Listener {
 	private static final Configuration CONFIG = AntiCheatReloaded.getManager().getConfiguration();
 	private static final DecimalFormat TPS_FORMAT = new DecimalFormat("##.##");
 	
+	static {
+		// What the hell, Java..
+		TPS_FORMAT.setDecimalFormatSymbols(DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+	}
+	
 	public static void log(String message, Player player, CheckType type, String subcheck) {
 		User user = getUserManager().getUser(player.getUniqueId());
 		if (user == null)
@@ -56,22 +62,23 @@ public class EventListener implements Listener {
 		boolean debugMode = CONFIG.getConfig().debugMode.getValue();
 		int vlForType = type.getUses(player.getUniqueId()) + 1;
 		int notifyEveryVl = CONFIG.getConfig().notifyEveryVl.getValue();
+		String prefix = ChatColor.translateAlternateColorCodes('&', CONFIG.getLang().ALERT_PREFIX());
 		if (message == null || message.equals("")) {
 			if (debugMode) {
-				message = ChatColor.GOLD + "" + ChatColor.BOLD + "ACR " + ChatColor.DARK_GRAY + "> "  + ChatColor.GRAY + player.getName() + " failed "
+				message = prefix + player.getName() + " failed "
 						+ type.getName();
 			} else {
-				message = ChatColor.GOLD + "" + ChatColor.BOLD + "ACR " + ChatColor.DARK_GRAY + "> "  + ChatColor.GRAY + player.getName() + " failed "
+				message = prefix + player.getName() + " failed "
 						+ type.getName() + ChatColor.GOLD + " (x" + vlForType + ")";
 			}
 		} else {
 			if (debugMode) {
-				message = ChatColor.GOLD + "" + ChatColor.BOLD + "ACR " + ChatColor.DARK_GRAY + "> "  + ChatColor.GRAY + player.getName() + " failed "
+				message = prefix + player.getName() + " failed "
 						+ type.getName() + ChatColor.DARK_GRAY + " | " + ChatColor.GRAY + message
 						+ ChatColor.DARK_GRAY + " | " + ChatColor.GRAY + "ping: " + user.getPing() + "ms"
 						+ ", tps: " + TPS_FORMAT.format(AntiCheatReloaded.getPlugin().getTPS());
 			} else {
-				message = ChatColor.GOLD + "" + ChatColor.BOLD + "ACR " + ChatColor.DARK_GRAY + "> " + ChatColor.GRAY
+				message = prefix
 						+ player.getName() + " failed " + type.getName() + ChatColor.GOLD + " (x" + vlForType + ")"
 						+ ChatColor.DARK_GRAY + " | " + ChatColor.GRAY
 						+ (subcheck != null ? ("type: " + subcheck.toLowerCase() + ", ") : "") + "ping: " + user.getPing() + "ms"

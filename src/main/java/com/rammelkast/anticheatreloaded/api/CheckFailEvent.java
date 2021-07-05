@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,9 +26,8 @@ import com.rammelkast.anticheatreloaded.check.CheckType;
 import com.rammelkast.anticheatreloaded.util.User;
 
 /**
- * Fired when a player fails an AntiCheat check
+ * Fired when a player fails an AntiCheatReloaded check
  */
-
 public class CheckFailEvent extends Event {
 
     private static final HandlerList handlers = new HandlerList();

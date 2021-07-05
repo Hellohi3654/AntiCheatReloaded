@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ public class IllegalInteract {
 	}
 
 	private static CheckResult checkBlockPlace(Player player, BlockPlaceEvent event) {
-		if (!isValidTarget(player, event.getBlock())) {
+		if (event.getBlock().getType().isSolid() && !isValidTarget(player, event.getBlock())) {
 			return new CheckResult(CheckResult.Result.FAILED, "Place", "tried to place a block out of their view");
 		}
 		return PASS;

@@ -1,7 +1,7 @@
 /*
  * AntiCheatReloaded for Bukkit and Spigot.
  * Copyright (c) 2012-2015 AntiCheat Team
- * Copyright (c) 2016-2020 Rammelkast
+ * Copyright (c) 2016-2021 Rammelkast
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,14 +16,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package com.rammelkast.anticheatreloaded;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -40,7 +40,6 @@ import com.rammelkast.anticheatreloaded.event.BlockListener;
 import com.rammelkast.anticheatreloaded.event.EntityListener;
 import com.rammelkast.anticheatreloaded.event.InventoryListener;
 import com.rammelkast.anticheatreloaded.event.PlayerListener;
-import com.rammelkast.anticheatreloaded.event.PotionEffectListener;
 import com.rammelkast.anticheatreloaded.event.VehicleListener;
 import com.rammelkast.anticheatreloaded.manage.AntiCheatManager;
 import com.rammelkast.anticheatreloaded.metrics.Metrics;
@@ -49,18 +48,18 @@ import com.rammelkast.anticheatreloaded.util.UpdateManager;
 import com.rammelkast.anticheatreloaded.util.User;
 import com.rammelkast.anticheatreloaded.util.VersionUtil;
 
-public class AntiCheatReloaded extends JavaPlugin {
+public final class AntiCheatReloaded extends JavaPlugin {
 
+	public static final String PREFIX = ChatColor.GOLD + "" + ChatColor.BOLD + "ACR " + ChatColor.DARK_GRAY + "> ";
 	public static final List<UUID> MUTE_ENABLED_MODS = new ArrayList<UUID>();
 	
-	private static AntiCheatManager manager;
 	private static AntiCheatReloaded plugin;
+	private static AntiCheatManager manager;
+	private static ExecutorService executorService;
 	private static List<Listener> eventList = new ArrayList<Listener>();
 	private static Configuration config;
 	private static boolean verbose;
 	private static ProtocolManager protocolManager;
-	private static SecureRandom random;
-	private static Long loadTime;
 	private static UpdateManager updateManager;
 	
 	private double tps = -1;
@@ -69,45 +68,43 @@ public class AntiCheatReloaded extends JavaPlugin {
 	@Override
 	public void onEnable() {
 		plugin = this;
-		random = new SecureRandom();
-		loadTime = System.currentTimeMillis();
 		manager = new AntiCheatManager(this, getLogger());
+		
+		// Base threads on available cores, lower limit of 1 and upper limit of 4
+		final int threads = Math.max(Math.min(Runtime.getRuntime().availableProcessors() / 4, 4), 1);
+		executorService = Executors.newFixedThreadPool(threads);
+		Bukkit.getConsoleSender().sendMessage(PREFIX + ChatColor.GRAY + "Pool size is " + threads + " threads");
+		
 		eventList.add(new PlayerListener());
 		eventList.add(new BlockListener());
 		eventList.add(new EntityListener());
 		eventList.add(new VehicleListener());
 		eventList.add(new InventoryListener());
-		// Handles 1.9+ potion effects
-		if (!VersionUtil.isBountifulUpdate())
-			eventList.add(new PotionEffectListener());
 		// Order is important in some cases, don't screw with these unless
 		// needed, especially config
-		this.setupConfig();
-		this.setupEvents();
-		this.setupCommands();
+		setupConfig();
+		setupEvents();
+		setupCommands();
 		// Enterprise must come before levels
-		this.setupEnterprise();
-		this.restoreLevels();
+		setupEnterprise();
+		restoreLevels();
 		
 		if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
-			this.setupProtocol();
+			setupProtocol();
 		} else {
-			Bukkit.getConsoleSender().sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "ACR " + ChatColor.DARK_GRAY + "> " + ChatColor.RED
+			Bukkit.getConsoleSender().sendMessage(PREFIX + ChatColor.RED
 					+ "Could not find ProtocolLib. Shutting down!");
 			Bukkit.getPluginManager().disablePlugin(this);
 			return;
 		}
 		
 		Bukkit.getConsoleSender()
-				.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "ACR " + ChatColor.DARK_GRAY + "> " + ChatColor.GRAY
-						+ "Running Minecraft version " + VersionUtil.getVersion() + " "
+				.sendMessage(PREFIX + ChatColor.GRAY + "Running Minecraft version " + VersionUtil.getVersion() + " "
 						+ (VersionUtil.isSupported() ? (ChatColor.GREEN + "(supported)")
 								: (ChatColor.RED + "(NOT SUPPORTED!)")));
 
-		getLogger().info("Enabling packet listeners");
-		PacketListener.listenMovementPackets();
-		PacketListener.listenKeepAlivePackets();
-		PacketListener.listenUseItemPackets();
+		getLogger().info("Loading packet listener");
+		PacketListener.load(protocolManager);
 		
 		updateManager = new UpdateManager();
 		
@@ -124,7 +121,7 @@ public class AntiCheatReloaded extends JavaPlugin {
 					metrics.addCustomChart(new Metrics.SingleLineChart("cheaters_kicked", new Callable<Integer>() {
 						@Override
 						public Integer call() throws Exception {
-							int kicked = playersKicked;
+							final int kicked = playersKicked;
 							// Reset so we don't keep sending the same value
 							playersKicked = 0;
 							return kicked;
@@ -156,34 +153,40 @@ public class AntiCheatReloaded extends JavaPlugin {
 		
 		// Launch TPS check
 		new BukkitRunnable() {
-            long sec;
-            long currentSec;
+            long second;
+            long currentSecond;
             int ticks;
 
             public void run() {
-                sec = (System.currentTimeMillis() / 1000L);
-                if (currentSec == sec) {
+            	second = (System.currentTimeMillis() / 1000L);
+                if (currentSecond == second) {
                     ticks += 1;
                 } else {
-                    currentSec = sec;
+                	currentSecond = second;
                     tps = (tps == 0.0D ? ticks : (tps + ticks) / 2.0D);
                     ticks = 1;
                 }
                 
                 // Check for updates every 12 hours
-                if (ticks % 864000 == 0)
+                if (ticks % 864000 == 0) {
                 	updateManager.update();
+                }
             }
         }.runTaskTimer(this, 40L, 1L);
 	}
 
 	@Override
 	public void onDisable() {
+		// Cancel all running tasks
+		getServer().getScheduler().cancelTasks(this);
+		
+		// Save user levels
 		verboseLog("Saving user levels...");
-		config.getLevels().saveLevelsFromUsers(getManager().getUserManager().getUsers());
+		if (config != null) {
+			config.getLevels().saveLevelsFromUsers(manager.getUserManager().getUsers());
+		}
 
 		AntiCheatManager.close();
-		getServer().getScheduler().cancelTasks(this);
 		cleanup();
 	}
 
@@ -237,19 +240,18 @@ public class AntiCheatReloaded extends JavaPlugin {
 	public static AntiCheatManager getManager() {
 		return manager;
 	}
-
-	public static SecureRandom getRandom() {
-		return random;
-	}
 	
 	public static String getVersion() {
 		return manager.getPlugin().getDescription().getVersion();
 	}
 
 	private void cleanup() {
-		eventList = null;
 		manager = null;
+		plugin = null;
+		eventList = null;
 		config = null;
+		protocolManager = null;
+		updateManager = null;
 	}
 	
 	public static void debugLog(final String string) {
@@ -270,10 +272,6 @@ public class AntiCheatReloaded extends JavaPlugin {
 
 	public void setVerbose(boolean b) {
 		verbose = b;
-	}
-
-	public Long getLoadTime() {
-		return loadTime;
 	}
 
 	public static ProtocolManager getProtocolManager() {
@@ -330,13 +328,20 @@ public class AntiCheatReloaded extends JavaPlugin {
 				this.symbiosisMetric += ", Negativity";
 			}
 		}
+		if (Bukkit.getPluginManager().getPlugin("SoaromaSAC") != null) {
+			if (this.symbiosisMetric.equals("None")) {
+				this.symbiosisMetric = "SoaromaSAC";
+			} else {
+				this.symbiosisMetric += ", SoaromaSAC";
+			}
+		}
 	}
 
 	public static void sendToMainThread(Runnable runnable) {
 		Bukkit.getScheduler().runTask(AntiCheatReloaded.getPlugin(), runnable);
 	}
 	
-	public void sendToStaff(String message) {
+	public void sendToStaff(final String message) {
 		Bukkit.getOnlinePlayers().forEach(player -> {
 			if (player.hasPermission("anticheat.system.alert")) {
 				if (!MUTE_ENABLED_MODS.contains(player.getUniqueId())) {
@@ -350,11 +355,12 @@ public class AntiCheatReloaded extends JavaPlugin {
 		return updateManager;
 	}
 	
+	public static ExecutorService getExecutor() {
+		return executorService;
+	}
+	
 	public double getTPS() {
-		if (this.tps < 0 || this.tps > 20) {
-			return 20;
-		}
-		return this.tps;
+		return Math.min(Math.max(this.tps, 0.0D), 20.0D);
 	}
 	
 }
